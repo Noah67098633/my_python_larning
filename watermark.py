@@ -15,6 +15,7 @@ COPYRIGHT_FONT = "Arial"
 TARGET_PATH = "/Users/Noah/Pictures/watermark/"
 COPYRIGHT = f"©Noah {datetime.now().year}"
 
+
 def makeWatermark(imagePath):
 
     if not os.path.isdir(TARGET_PATH):
@@ -24,25 +25,26 @@ def makeWatermark(imagePath):
     target = f"{TARGET_PATH}{fileName}"
     image = Image.open(imagePath)
     exifDic = piexif.load(image.info["exif"])
-
+    
     (originw, originh) = image.size
     containerImageW = CONTAINER_LONG_EDGE if originw > originh else CONTAINER_SHORT_EDGE
     containerImageH = CONTAINER_LONG_EDGE if originw < originh else CONTAINER_SHORT_EDGE
+
+    scale = min((containerImageW - BORDER * 2) / originw, (containerImageH - BORDER * 2) / originh)
+
+    image = image.resize((int(originw * scale), int(originh * scale)), Image.LANCZOS)
+
     imageX = int((containerImageW - image.width) / 2)
     imageY = int((containerImageH - image.height) / 2)
-    scale = min((containerImageW - BORDER * 2) / originw,
-                (containerImageH - BORDER * 2) / originh)
-
-    image = image.resize(
-        (int(originw * scale), int(originh * scale)), Image.LANCZOS)
-
     containerImage = Image.new(
         'RGB', (containerImageW, containerImageH), (255, 255, 255))
     containerImage.paste(image, (imageX, imageY))
 
     exifInfo = makeExifInfoText(imagePath)
+    
     font = ImageFont.truetype(font=EXIF_FONT, size=EXIF_INFO_SIZE)
     font2 = ImageFont.truetype(font=COPYRIGHT_FONT, size=COPYRIGHT_SIZE)
+
     textH = imageY + image.height + TEXT_PADDING
     draw = ImageDraw.Draw(containerImage)
     draw.text(xy=(imageX, textH),
@@ -54,7 +56,6 @@ def makeWatermark(imagePath):
     exifDic["Exif"][piexif.ExifIFD.PixelYDimension] = containerImage.height
     exifDic["thumbnail"] = None
     exifBytes = piexif.dump(exifDic)
-
     containerImage.save(target, quality=99, subsampling=0, exif=exifBytes)
 
     print(f"{imagePath} done")
@@ -73,7 +74,7 @@ def makeExifInfoText(imagePath):
     cameraInfo = f"{make} {model} {lens}"
     FStop = newDic.get("FNumber", "0")
     FStopNum = str(float(FStop[0]) / float(FStop[1]
-                                           )).replace(".0", "") if len(FStop) == 2 else FStop[0]
+                                       )).replace(".0", "") if len(FStop) == 2 else FStop[0]
 
     shutterTime = newDic.get("ExposureTime", "0")
     shutterTimeNum = f"{shutterTime[0]}/{shutterTime[1]}" if len(
@@ -102,3 +103,4 @@ if __name__ == '__main__':
         makeWatermark(image)
     end = datetime.now()
     print(end - start)
+
