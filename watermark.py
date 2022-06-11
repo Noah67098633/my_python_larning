@@ -6,7 +6,7 @@ import piexif
 
 BORDER = 120
 CONTAINER_LONG_EDGE = 3000
-CONTAINER_SHORT_EDGE = 1000
+CONTAINER_SHORT_EDGE = 2000
 TEXT_PADDING = 10
 EXIF_INFO_SIZE = 30
 COPYRIGHT_SIZE = 40
@@ -38,6 +38,10 @@ def makeWatermark(imagePath):
     imageY = int((containerImageH - image.height) / 2)
     containerImage = Image.new(
         'RGB', (containerImageW, containerImageH), (255, 255, 255))
+
+    # paper = Image.open(f"{os.getcwd()}/paper.jpg").resize((containerImageW, containerImageH), Image.LANCZOS)
+    # containerImage.paste(paper, (0, 0))
+
     containerImage.paste(image, (imageX, imageY))
 
     exifInfo = makeExifInfoText(imagePath)
@@ -63,6 +67,10 @@ def makeWatermark(imagePath):
 
 def makeExifInfoText(imagePath):
     exifDic = piexif.load(imagePath)
+    # for ifd in ("0th", "Exif", "GPS", "1st"):
+    #     for tag in exifDic[ifd]:
+    #         print(piexif.TAGS[ifd][tag]["name"], exifDic[ifd][tag])
+
     newDic = {}
     for ifd in ("0th", "Exif", "GPS", "1st"):
         for tag in exifDic[ifd]:
@@ -72,13 +80,13 @@ def makeExifInfoText(imagePath):
     make = str(newDic.get("Make", "-"), encoding="utf-8")
     lens = str(newDic.get("LensModel", "-"), encoding="utf-8")
     cameraInfo = f"{make} {model} {lens}"
-    FStop = newDic.get("FNumber", "0")
+    FStop = newDic.get("FNumber", "-")
     FStopNum = str(float(FStop[0]) / float(FStop[1]
                                        )).replace(".0", "") if len(FStop) == 2 else FStop[0]
 
     shutterTime = newDic.get("ExposureTime", "0")
     shutterTimeNum = f"{shutterTime[0]}/{shutterTime[1]}" if len(
-        FStop) == 2 else "--/--"
+        shutterTime) == 2 else "--/--"
     iso = newDic.get("ISOSpeedRatings", "-")
     param = f"F{FStopNum} {shutterTimeNum}s ISO{iso}"
     exifInfo = f"{cameraInfo} \n{param}"
