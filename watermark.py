@@ -4,72 +4,95 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 import piexif
 
-BORDER = 240
-OUTPUTWIDTH = 3000
-TEXTPADDING = 20
-EXIFINFOSIZE = 40
-COPYRIGHTSIZE = 60
-EXIFFONT = "Arial"
-COPYRIGHTFONT = "Arial"
-TARGETPATH = "/Users/Noah/Pictures/watermark/"
+BORDER = 120
+CONTAINER_LONG_EDGE = 3000
+CONTAINER_SHORT_EDGE = 2000
+TEXT_PADDING = 10
+EXIF_INFO_SIZE = 30
+COPYRIGHT_SIZE = 40
+EXIF_FONT = "Arial"
+COPYRIGHT_FONT = "Arial"
+TARGET_PATH = "/Users/Noah/Pictures/watermark/"
 COPYRIGHT = f"©Noah {datetime.now().year}"
+
+
+
+
+
+
+def scaleImageToFitSize(containerSize, imageSize):
+    pass
 
 
 def makeWatermark(imagePath):
 
-    if not os.path.isdir(TARGETPATH):
-        os.makedirs(TARGETPATH)
+    if not os.path.isdir(TARGET_PATH):
+        os.makedirs(TARGET_PATH)
 
     fileName = os.path.basename(imagePath)
-    target = f"{TARGETPATH}{fileName}"
+    target = f"{TARGET_PATH}{fileName}"
     image = Image.open(imagePath)
     exifDic = piexif.load(image.info["exif"])
     
-
     (originw, originh) = image.size
     imageX = 0
     imageY = 0
     imageWidth = 0
     imageHeigh = 0
+    containerImageW = 0
+    containerImageH = 0
     if originw > originh:
+        containerImageW = CONTAINER_LONG_EDGE
+        containerImageH = CONTAINER_SHORT_EDGE
         radio = originh / originw
-        imageWidth = int(OUTPUTWIDTH - BORDER * 2)
-        imageHeigh = int(imageWidth * radio)
-        imageX = BORDER
-        imageY = int((OUTPUTWIDTH - imageHeigh)  / 2)
-    
+        if (containerImageW - BORDER * 2) * radio > (containerImageH - BORDER * 2):
+            imageHeigh = int(containerImageH - BORDER * 2)
+            imageWidth = int(imageHeigh / radio)
+            imageY = BORDER
+            imageX = int((containerImageW - imageWidth) / 2)
+        else:
+            imageWidth = int(containerImageW - BORDER * 2)
+            imageHeigh = int(imageWidth * radio)
+            imageX = BORDER
+            imageY = int((containerImageH - imageHeigh)  / 2)
     else:
+        containerImageW = CONTAINER_SHORT_EDGE
+        containerImageH = CONTAINER_LONG_EDGE
         radio = originw / originh
-        imageHeigh = int(OUTPUTWIDTH - BORDER * 2)
-        imageWidth = int(imageHeigh * radio)
-        imageY = BORDER
-        imageX = int((OUTPUTWIDTH - imageWidth)  / 2)
-
-
+        if (containerImageH - BORDER * 2) * radio > (containerImageW - BORDER * 2):
+            imageWidth = int(containerImageW - BORDER * 2)
+            imageHeigh = int(imageWidth / radio)
+            imageX = BORDER
+            imageY = int((containerImageH - imageHeigh)  / 2)
+        else:
+            imageHeigh = int(containerImageH - BORDER * 2)
+            imageWidth = int(imageHeigh * radio)
+            imageY = BORDER
+            imageX = int((containerImageW - imageWidth) / 2)
 
     image = image.resize((imageWidth, imageHeigh), Image.LANCZOS)
 
-    combineImage = Image.new(
-        'RGB', (OUTPUTWIDTH, OUTPUTWIDTH), (255, 255, 255))
-    combineImage.paste(image, (imageX, imageY))
+    containerImage = Image.new(
+        'RGB', (containerImageW, containerImageH), (255, 255, 255))
+    containerImage.paste(image, (imageX, imageY))
 
     exifInfo = makeExifInfoText(imagePath)
     
-    font = ImageFont.truetype(font=EXIFFONT, size=EXIFINFOSIZE)
-    font2 = ImageFont.truetype(font=COPYRIGHTFONT, size=COPYRIGHTSIZE)
+    font = ImageFont.truetype(font=EXIF_FONT, size=EXIF_INFO_SIZE)
+    font2 = ImageFont.truetype(font=COPYRIGHT_FONT, size=COPYRIGHT_SIZE)
 
-    textH = imageY + imageHeigh + TEXTPADDING
-    draw = ImageDraw.Draw(combineImage)
+    textH = imageY + imageHeigh + TEXT_PADDING
+    draw = ImageDraw.Draw(containerImage)
     draw.text(xy=(imageX, textH),
               text=exifInfo, fill=(0, 0, 0), font=font)
-    textSize = draw.textsize(text=COPYRIGHT, font=font2,)
+    textSize = draw.textsize(text=COPYRIGHT, font=font2)
     draw.text(xy=((imageWidth + imageX) - textSize[0], textH),
               text=COPYRIGHT, fill=(0, 0, 0), font=font2)
-    exifDic["Exif"][piexif.ExifIFD.PixelXDimension] = combineImage.width
-    exifDic["Exif"][piexif.ExifIFD.PixelYDimension] = combineImage.height
+    exifDic["Exif"][piexif.ExifIFD.PixelXDimension] = containerImage.width
+    exifDic["Exif"][piexif.ExifIFD.PixelYDimension] = containerImage.height
     exifDic["thumbnail"] = None
     exifBytes = piexif.dump(exifDic)
-    combineImage.save(target, quality=99, subsampling=0, exif=exifBytes)
+    containerImage.save(target, quality=99, subsampling=0, exif=exifBytes)
 
     print(f"{imagePath} done")
 
