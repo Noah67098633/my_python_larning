@@ -17,8 +17,6 @@ EXIF_FONT = "Arial Bold.ttf"
 COPYRIGHT_FONT = EXIF_FONT
 TARGET_PATH = "/Users/Noah/Pictures/watermark/"
 COPYRIGHT = f"©Noah {datetime.now().year}"
-
-
 LOGO_MAPPING = {"NIKON CORPORATION": f"{sys.path[0]}/logo/nikon_logo.jpg",
                 "FUJIFILM": f"{sys.path[0]}/logo/fuji_logo.jpg"}
 
@@ -68,12 +66,8 @@ def makeWatermark(imagePath):
     draw.text(xy=((image.width + imageX) - textSize[0], textH),
               text=COPYRIGHT, fill=FONT_COLOR, font=font2)
 
-    make = str(exifDic["0th"][piexif.ImageIFD.Make], encoding="utf-8")
-    logoPath = LOGO_MAPPING[make]
-    if  logoPath and os.path.exists(logoPath):
-        logo = Image.open(logoPath)
-        logoRadio = logo.width / logo.height
-        logo = logo.resize((int(LOGO_HEIGH * logoRadio), LOGO_HEIGH))
+    logo = makeLogo(exifDic)
+    if  logo:
         x = int((containerImage.width - logo.width) / 2)
         y = imageY + image.height
         containerImage.paste(logo, (x, y))
@@ -117,6 +111,16 @@ def makeExifInfoText(imagePath):
     param = f"F{FStopNum} {shutterTimeNum}s ISO{iso}"
     exifInfo = f"{cameraInfo} \n{param}"
     return exifInfo
+
+def makeLogo(exifDic):
+    make = str(exifDic["0th"][piexif.ImageIFD.Make], encoding="utf-8")
+    logoPath = LOGO_MAPPING[make]
+
+    if logoPath and os.path.exists(logoPath):
+        logo = Image.open(logoPath)
+        logoRadio = logo.width / logo.height
+        return logo.resize((int(LOGO_HEIGH * logoRadio), LOGO_HEIGH))
+    return None
 
 
 def getImageFile(fileName):
