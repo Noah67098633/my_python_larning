@@ -6,13 +6,13 @@ from PIL import Image, ImageDraw, ImageFont
 import piexif
 
 BORDER = 140
-LOGO_HEIGH = int(BORDER / 1.8)
+LOGO_HEIGH = int(BORDER / 2)
 CONTAINER_LONG_EDGE = 3000
 CONTAINER_SHORT_EDGE = int(CONTAINER_LONG_EDGE * (2/3))
-TEXT_PADDING = 8
+TEXT_PADDING = 12
 EXIF_INFO_SIZE = 26
 COPYRIGHT_SIZE = 36
-FONT_COLOR = (60,60,60)
+FONT_COLOR = (60, 60, 60)
 EXIF_FONT = "Arial Bold.ttf"
 COPYRIGHT_FONT = EXIF_FONT
 TARGET_PATH = "/Users/Noah/Pictures/watermark/"
@@ -67,7 +67,7 @@ def makeWatermark(imagePath):
               text=COPYRIGHT, fill=FONT_COLOR, font=font2)
 
     logo = makeLogo(exifDic)
-    if  logo:
+    if logo:
         x = int((containerImage.width - logo.width) / 2)
         y = imageY + image.height
         containerImage.paste(logo, (x, y))
@@ -95,22 +95,22 @@ def makeExifInfoText(imagePath):
 
     model = str(newDic.get("Model", "-"), encoding="utf-8")
     make = str(newDic.get("Make", "-"), encoding="utf-8")
-    lens = str(newDic.get("LensModel", "-"), encoding="utf-8")
+    lens =  str(newDic.get("LensModel", "-"), encoding="utf-8") if "LensMake" in newDic else ""
     if "x100" in model.lower():
         lens = ""
     cameraInfo = f"{make} {model} {lens}".replace(
-        "NIKON CORPORATION NIKON", "NIKON")
+        "NIKON CORPORATION NIKON", "NIKON").replace("Fujifilm Fujinon", "")
     FStop = newDic.get("FNumber", "-")
     FStopNum = str(float(FStop[0]) / float(FStop[1]
                                            )).replace(".0", "") if len(FStop) == 2 else FStop[0]
-
-    shutterTime = newDic.get("ExposureTime", "0")
-    shutterTimeNum = f"{shutterTime[0]}/{shutterTime[1]}" if len(
-        shutterTime) == 2 else "--/--"
+    FStopNum = FStopNum if "LensMake" in newDic else "-"
+    (mol, den) = newDic.get("ExposureTime", "0")
+    shutterTimeNum = f"{mol}/{den}" if den is not 1 else f"{mol}"
     iso = newDic.get("ISOSpeedRatings", "-")
-    param = f"F{FStopNum} {shutterTimeNum}s ISO{iso}"
+    param = f"F{FStopNum}  {shutterTimeNum}s  ISO{iso}"
     exifInfo = f"{cameraInfo} \n{param}"
     return exifInfo
+
 
 def makeLogo(exifDic):
     make = str(exifDic["0th"][piexif.ImageIFD.Make], encoding="utf-8")
@@ -119,6 +119,8 @@ def makeLogo(exifDic):
     if logoPath and os.path.exists(logoPath):
         logo = Image.open(logoPath)
         logoRadio = logo.width / logo.height
+        # draw = ImageDraw.Draw(logo)
+        # draw.rectangle((0,0,logo.width,logo.height), outline="red", width=4)
         return logo.resize((int(LOGO_HEIGH * logoRadio), LOGO_HEIGH))
     return None
 
