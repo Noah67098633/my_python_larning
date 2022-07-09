@@ -84,9 +84,9 @@ def makeWatermark(imagePath):
 
 def makeExifInfoText(imagePath):
     exifDic = piexif.load(imagePath)
-    # for ifd in ("0th", "Exif", "GPS", "1st"):
-    #     for tag in exifDic[ifd]:
-    #         print(piexif.TAGS[ifd][tag]["name"], exifDic[ifd][tag])
+    for ifd in ("0th", "Exif", "GPS", "1st"):
+        for tag in exifDic[ifd]:
+            print(piexif.TAGS[ifd][tag]["name"], exifDic[ifd][tag])
 
     newDic = {}
     for ifd in ("0th", "Exif", "GPS", "1st"):
@@ -103,9 +103,10 @@ def makeExifInfoText(imagePath):
     FStop = newDic.get("FNumber", "-")
     FStopNum = str(float(FStop[0]) / float(FStop[1]
                                            )).replace(".0", "") if len(FStop) == 2 else FStop[0]
-    FStopNum = FStopNum if "LensMake" in newDic else "-"
+    FStopNum = FStopNum if ("LensMake" in newDic or "x100" in model.lower()) else "-"
     (mol, den) = newDic.get("ExposureTime", "0")
-    shutterTimeNum = f"{mol}/{den}" if den is not 1 else f"{mol}"
+    shutterTimeNum = f"1/{round(den / mol, 1)}" if den is not 1 else f"{mol}"
+    shutterTimeNum = shutterTimeNum.replace(".0", "")
     iso = newDic.get("ISOSpeedRatings", "-")
     param = f"F{FStopNum}  {shutterTimeNum}s  ISO{iso}"
     exifInfo = f"{cameraInfo} \n{param}"
