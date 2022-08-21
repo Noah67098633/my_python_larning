@@ -1,4 +1,5 @@
 from datetime import datetime
+from statistics import mode
 from sys import argv
 import os
 import sys
@@ -104,9 +105,14 @@ def makeExifInfoText(imagePath):
     FStopNum = str(float(FStop[0]) / float(FStop[1]
                                            )).replace(".0", "") if len(FStop) == 2 else FStop[0]
     FStopNum = FStopNum if ("LensMake" in newDic or "x100" in model.lower()) else "-"
+    shutterTimeNum = 0
     (mol, den) = newDic.get("ExposureTime", "0")
-    shutterTimeNum = f"1/{round(den / mol, 1)}" if den is not 1 else f"{mol}"
+    if mol / den < 1:
+        shutterTimeNum = f"1/{round(den / mol, 1)}" if den is not 1 else f"{mol}"
+    else: 
+        shutterTimeNum = str(mol / den)
     shutterTimeNum = shutterTimeNum.replace(".0", "")
+    print(f"{shutterTimeNum}.......")
     iso = newDic.get("ISOSpeedRatings", "-")
     param = f"F{FStopNum}  {shutterTimeNum}s  ISO{iso}"
     exifInfo = f"{cameraInfo} \n{param}"
