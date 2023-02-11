@@ -109,7 +109,7 @@ def saveSharingImage(image, exifDic, filePath):
         imageH = originh
     else:
         radio = originw / originh
-        imageW = 3000 if originw > originh else int(3000 / radio)
+        imageW = 3000 if originw > originh else int(3000 * radio)
         imageH = 3000 if originw < originh else int(3000 / radio)
     image = image.resize(
         (imageW, imageH), Image.LANCZOS)
