@@ -4,12 +4,9 @@ from sys import argv
 import os
 import sys
 from PIL import Image, ImageDraw, ImageFont
-import piexif
+from image_tools import resize_image, add_canvas_to_image, read_image_metadata
 
-BORDER = 140
-LOGO_HEIGH = int(BORDER / 2)
-CONTAINER_LONG_EDGE = 3000
-CONTAINER_SHORT_EDGE = int(CONTAINER_LONG_EDGE * (2/3))
+LOGO_HEIGH = 70
 TEXT_PADDING = 12
 EXIF_INFO_SIZE = 26
 COPYRIGHT_SIZE = 36
@@ -36,131 +33,55 @@ def makeWatermark(imagePath):
 
     fileName = os.path.basename(imagePath)
     target = f"{TARGET_PATH}{fileName}"
-    image = Image.open(imagePath)
-    exifDic = piexif.load(image.info["exif"])
-    saveSharingImage(image, exifDic, f"{SHARING_PATH}{fileName}")
 
-    (originw, originh) = image.size
+    img_meta_data = read_image_metadata(imagePath)
+    print(img_meta_data)
+    share_img_path = f"{SHARING_PATH}{fileName}"
+    resize_image(imagePath, share_img_path, 3000)
+    (canvas_img, resized_image) = add_canvas_to_image(share_img_path, 1.1)
 
-    containerImageW = CONTAINER_LONG_EDGE if originw > originh else CONTAINER_SHORT_EDGE
-    containerImageH = CONTAINER_LONG_EDGE if originw <= originh else CONTAINER_SHORT_EDGE
-    radio = (containerImageW - BORDER * 2) / containerImageW if originw > originh else (
-        containerImageH - BORDER * 2) / containerImageH
-    scale = min((containerImageW * radio) / originw,
-                (containerImageH * radio) / originh)
+    camera_make = img_meta_data['camera_make']
+    camera_model = img_meta_data['camera_model']
+    lens = img_meta_data['lens_info']
+    if camera_model.upper() == lens.upper(): lens = ""
+    camera_info = f"{camera_make} {camera_model} {lens} ".replace("NIKON CORPORATION NIKON", "NIKON").replace("Fujifilm Fujinon", "").replace("RICOH IMAGING COMPANY, LTD.", "").lstrip()
+    shutting_params = f"{img_meta_data['focal_length']}mm F{img_meta_data['aperture']}  {img_meta_data['shutter_speed']}s  ISO{img_meta_data['iso']}"
 
-    image = image.resize(
-        (int(originw * scale), int(originh * scale)), Image.LANCZOS)
-
-    imageX = int((containerImageW - image.width) / 2)
-    imageY = int((containerImageH - image.height) / 2)
-    containerImage = Image.new(
-        'RGB', (containerImageW, containerImageH), (255, 255, 255))
-
-    # paper = Image.open(f"{os.getcwd()}/paper.jpg").resize((containerImageW, containerImageH), Image.LANCZOS)
-    # containerImage.paste(paper, (0, 0))
-
-    containerImage.paste(image, (imageX, imageY))
-
-    (cameraInfo, param) = makeExifInfoText(imagePath)
+    text_x = int((canvas_img.width - resized_image.width) // 2) 
+    text_y = int(resized_image.height +  (canvas_img.height - resized_image.height) // 2) + 8
 
     font = ImageFont.truetype(font=EXIF_FONT, size=EXIF_INFO_SIZE)
     fontUnder = ImageFont.truetype(font=EXIF_FONT, size=EXIF_INFO_SIZE)
-
     font2 = ImageFont.truetype(font=COPYRIGHT_FONT, size=COPYRIGHT_SIZE)
 
-    textH = imageY + image.height + TEXT_PADDING
-    draw = ImageDraw.Draw(containerImage)
-    draw.text(xy=(imageX, textH),
-              text=cameraInfo, fill=FONT_COLOR, font=font)
-    draw.text(xy=(imageX, textH + EXIF_INFO_SIZE + 4),
-              text=param, fill=FONT_COLOR_UNDER, font=fontUnder)
+    draw = ImageDraw.Draw(canvas_img)
+    draw.text(xy=(text_x, text_y),
+              text=camera_info, fill=FONT_COLOR, font=font)
+    draw.text(xy=(text_x, text_y + EXIF_INFO_SIZE + 4),
+              text=shutting_params, fill=FONT_COLOR_UNDER, font=fontUnder)
 
     textSize = draw.textsize(text=COPYRIGHT, font=font2)
-    draw.text(xy=((image.width + imageX) - textSize[0], textH),
+    draw.text(xy=((text_x + resized_image.width) - textSize[0], text_y),
               text=COPYRIGHT, fill=FONT_COLOR, font=font2)
-
-    logo = makeLogo(exifDic)
-    if logo:
-        x = int((containerImage.width - logo.width) / 2)
-        y = imageY + image.height
-        containerImage.paste(logo, (x, y))
-
-    exifDic["Exif"][piexif.ExifIFD.PixelXDimension] = containerImage.width
-    exifDic["Exif"][piexif.ExifIFD.PixelYDimension] = containerImage.height
-    exifDic["thumbnail"] = None
-    exifBytes = piexif.dump(exifDic)
-
-    containerImage.save(target, quality=99, subsampling=0, exif=exifBytes)
-
-    print(f"{imagePath} done")
-
-def saveSharingImage(image, exifDic, filePath):
-    exifDic["Exif"][piexif.ExifIFD.PixelXDimension] = image.width
-    exifDic["Exif"][piexif.ExifIFD.PixelYDimension] = image.height
-    exifDic["thumbnail"] = None
-    exifBytes = piexif.dump(exifDic)
-
-    (originw, originh) = image.size
-    imageW = 0
-    imageH = 0
-    if min(max(originw, originh), 3000) < 3000:
-        imageW = originw
-        imageH = originh
-    else:
-        radio = originw / originh
-        imageW = 3000 if originw > originh else int(3000 * radio)
-        imageH = 3000 if originw < originh else int(3000 / radio)
-    image = image.resize(
-        (imageW, imageH), Image.LANCZOS)
-    image.save(filePath, quality=99, subsampling=0, exif=exifBytes)
-
-
-def makeExifInfoText(imagePath):
-    exifDic = piexif.load(imagePath)
-    for ifd in ("0th", "Exif", "GPS", "1st"):
-        for tag in exifDic[ifd]:
-            print(piexif.TAGS[ifd][tag]["name"], exifDic[ifd][tag])
-
-    newDic = {}
-    for ifd in ("0th", "Exif", "GPS", "1st"):
-        for tag in exifDic[ifd]:
-            newDic[piexif.TAGS[ifd][tag]["name"]] = exifDic[ifd][tag]
-
-    model = str(newDic.get("Model", "-"), encoding="utf-8")
-    make = str(newDic.get("Make", "-"), encoding="utf-8")
-    print(f"{make} =======")
-    lens =  str(newDic.get("LensModel", "-"), encoding="utf-8") if "LensMake" in newDic else ""
-    if "x100" in model.lower():
-        lens = ""
-    cameraInfo = f"{make} {model} {lens}".replace(
-        "NIKON CORPORATION NIKON", "NIKON").replace("Fujifilm Fujinon", "").replace("RICOH IMAGING COMPANY, LTD.", "").lstrip()
-    FStop = newDic.get("FNumber", "-")
-    FStopNum = str(float(FStop[0]) / float(FStop[1]
-                                           )).replace(".0", "") if len(FStop) == 2 else FStop[0]
-    FStopNum = FStopNum if ("LensMake" in newDic or "x100" in model.lower() or "RICOH GR III" in model) else "-"
-    shutterTimeNum = 0
-    (mol, den) = newDic.get("ExposureTime", "0")
-    if mol / den < 1:
-        shutterTimeNum = f"1/{round(den / mol, 1)}" if den is not 1 else f"{mol}"
-    else: 
-        shutterTimeNum = str(mol / den)
-    shutterTimeNum = shutterTimeNum.replace(".0", "")
-    iso = newDic.get("ISOSpeedRatings", "-")
-    param = f"F{FStopNum}  {shutterTimeNum}s  ISO{iso}"
-    # exifInfo = f"{cameraInfo} \n{param}"
-    return (cameraInfo, param)
-
-
-def makeLogo(exifDic):
-    make = str(exifDic["0th"][piexif.ImageIFD.Make], encoding="utf-8").strip()
+    
+    make = img_meta_data['camera_make']
     logoPath = LOGO_MAPPING[make]
+    logo = makeLogo(logoPath)
+    if logo:
+        x = (canvas_img.width - logo.width) // 2
+        y = text_y
+        canvas_img.paste(logo, (x, y - 8))
 
-    if logoPath and os.path.exists(logoPath):
-        logo = Image.open(logoPath)
+    canvas_img.save(target, quality=99, subsampling=0)
+
+    print(f"{target} done")
+
+
+def makeLogo(logo_path):
+
+    if logo_path and os.path.exists(logo_path):
+        logo = Image.open(logo_path)
         logoRadio = logo.width / logo.height
-        # draw = ImageDraw.Draw(logo)
-        # draw.rectangle((0,0,logo.width,logo.height), outline="red", width=4)
         return logo.resize((int(LOGO_HEIGH * logoRadio), LOGO_HEIGH))
     return None
 

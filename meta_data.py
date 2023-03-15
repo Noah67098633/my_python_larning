@@ -1,6 +1,7 @@
 import piexif
 from fractions import Fraction
 from datetime import datetime
+from sys import argv
 
 def read_image_metadata(img_path):
     """
@@ -15,9 +16,6 @@ def read_image_metadata(img_path):
 
     # Create an empty dictionary to store the metadata
     metadata = {}
-
-    # Load the image
-    img = open(img_path, 'rb')
 
     try:
         # Read the EXIF data
@@ -63,3 +61,9 @@ def read_image_metadata(img_path):
 
     # Return the extracted metadata dictionary
     return metadata
+
+
+
+if __name__ == '__main__':
+    data = read_image_metadata(argv[1])
+    print(data)
