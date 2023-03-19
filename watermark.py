@@ -26,19 +26,19 @@ LOGO_MAPPING = {
                 }
 
 
-def makeWatermark(imagePath):
+def makeWatermark(image_path):
 
     if not os.path.isdir(TARGET_PATH):
         os.makedirs(TARGET_PATH)
 
-    fileName = os.path.basename(imagePath)
+    fileName = os.path.basename(image_path)
     target = f"{TARGET_PATH}{fileName}"
 
-    img_meta_data = read_image_metadata(imagePath)
+    img_meta_data = read_image_metadata(image_path)
     print(img_meta_data)
-    share_img_path = f"{SHARING_PATH}{fileName}"
-    resize_image(imagePath, share_img_path, 3000)
-    (canvas_img, resized_image) = add_canvas_to_image(share_img_path, 1.1)
+    # share_img_path = f"{SHARING_PATH}{fileName}"
+    # resize_image(image_path, share_img_path, 3000)
+    (canvas_img, resized_image) = add_canvas_to_image(image_path, 1.1)
 
     camera_make = img_meta_data['camera_make']
     camera_model = img_meta_data['camera_model']

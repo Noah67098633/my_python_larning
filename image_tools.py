@@ -112,13 +112,24 @@ def add_canvas_to_image(image_path, scale, max_long_edge = 3000):
     
     # 打开原始图片
     image = Image.open(image_path)
-    isLandscape = image.width > image.height
 
     width, height = image.size
     radio = width / height
-    new_width = int(width // scale)
-    new_height = int(height // scale)
-    
+    isLandscape = width > height
+
+    # 缩放到指定大小
+    if max(width, height) != max_long_edge:
+        if width > height:
+            new_width = max_long_edge
+            new_height = int(height * new_width / width)
+        else:
+            new_height = max_long_edge
+            new_width = int(width * new_height / height)
+            
+        image = image.resize((new_width, new_height), resample=Image.LANCZOS)
+
+    new_width, new_height = int(image.width // scale), int(image.height // scale)
+
     if isLandscape:
         canvas_width = max_long_edge
         canvas_height = int(max_long_edge * (2 / 3))
